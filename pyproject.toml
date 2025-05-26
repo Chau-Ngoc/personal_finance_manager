@@ -11,6 +11,10 @@ authors = [
 description = "This project helps me keep track of my expenses by extracting the content from the mails sent by issuing banks."
 readme = "README.md"
 
+[tool.setuptools.packages.find]
+where = ['src']
+include = ['personal_finance_manager*']
+
 [tool.ruff]
 line-length = 119
 

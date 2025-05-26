@@ -1,53 +1,109 @@
-import os.path
+import base64
+import email
+import email.parser
+import email.policy
+import json
+import os
+import pprint
+import re
+from datetime import datetime
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+import boto3
+import pandas as pd
+from dotenv import load_dotenv
 
-# If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+from personal_finance_manager.objects import BIDVCareDocument, BIDVHTMLDocument, BIDVSmartBankingDocument
 
-
-def main():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
-    """
-    creds = None
-    # The file token.json stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists("token.json"):
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
-            creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-
-    try:
-        # Call the Gmail API
-        service = build("gmail", "v1", credentials=creds)
-        results = service.users().labels().list(userId="me").execute()
-        labels = results.get("labels", [])
-
-        if not labels:
-            print("No labels found.")
-            return
-        print("Labels:")
-        for label in labels:
-            print(label["name"])
-
-    except HttpError as error:
-        # TODO(developer) - Handle errors from gmail API.
-        print(f"An error occurred: {error}")
+load_dotenv()
 
 
-if __name__ == "__main__":
-    main()
+def get_bidv_document(match: str, html_document: str) -> BIDVHTMLDocument:
+    documents = {
+        "bidvcare": BIDVCareDocument,
+        "bidvsmartbanking": BIDVSmartBankingDocument,
+    }
+    return documents[match](html_document)
+
+
+def get_raw_email_content(event: dict, as_bytes=False) -> str | bytes:
+    sns_object = event["Records"][0]["Sns"]
+    message = sns_object["Message"]
+    message_dict = json.loads(message)
+
+    content = message_dict["content"]
+    if as_bytes:
+        content = base64.b64decode(content)
+
+    return content
+
+
+def get_html_content(email_message: email.message.EmailMessage | email.message.Message) -> str:
+    html_doc = ""
+    for part in email_message.walk():
+        if part.get_content_type() == "text/html":
+            html_doc = part.get_content()
+    return html_doc
+
+
+def create_row_dict(
+    document: BIDVHTMLDocument, email_message: email.message.EmailMessage | email.message.Message
+) -> dict:
+    csv_headers = (
+        "transaction_type",
+        "orig_amount",
+        "orig_currency",
+        "transaction_status",
+        "received_time",
+        "vendor",
+        "approval_code",
+    )
+
+    information = document.get_meaningful_information()
+    row_dict = {k: v for k, v in zip(csv_headers, information)}
+
+    received_at = datetime.strptime(email_message["Date"], "%a, %d %b %Y %H:%M:%S %z")
+    row_dict["received_time"] = received_at.isoformat()
+
+    orig_amount, orig_currency = information[1].split(" ")
+    orig_amount = float(orig_amount.replace(",", ""))
+    row_dict["orig_amount"] = orig_amount
+    row_dict["orig_currency"] = orig_currency
+
+    return row_dict
+
+
+def generate_keyname() -> str:
+    this_month = datetime.today().strftime("%B-%Y")
+    filename = f"{this_month}.csv"
+    return f"reports/{filename}"
+
+
+def lambda_handler(event, context):
+    s3 = boto3.client("s3")
+    email_parser = email.parser.BytesParser(policy=email.policy.SMTP)
+    pattern = re.compile(r"<(?P<specifier>.*)@bidv\.com\.vn>")
+
+    # Get raw email content from SNS topic
+    content_bytes = get_raw_email_content(event, as_bytes=True)
+
+    email_message = email_parser.parsebytes(content_bytes)
+    from_addr = email_message["From"]
+    match = pattern.search(from_addr)
+
+    # Parse email HTML content
+    html_doc = get_html_content(email_message)
+    document = get_bidv_document(match.group("specifier"), html_doc)
+
+    row_dict = create_row_dict(document, email_message)
+
+    # Modify the csv file in S3
+    key = generate_keyname()
+    response = s3.get_object(Bucket=os.environ["S3_BUCKET_NAME"], Key=key)
+
+    df = pd.read_csv(response["Body"])
+    df.loc[df.shape[0]] = row_dict
+
+    response = s3.put_object(Bucket=os.environ["S3_BUCKET_NAME"], Key=key, Body=df.to_csv(index=False).encode())
+    pprint.pp(response, indent=2)
+
+    return response

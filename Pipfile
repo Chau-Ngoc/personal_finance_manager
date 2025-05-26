@@ -4,11 +4,13 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-google-api-python-client = "*"
-google-auth-httplib2 = "*"
-google-auth-oauthlib = "*"
 boto3 = "*"
 python-dotenv = "*"
+beautifulsoup4 = "*"
+lxml = "*"
+personal-finance-manager = {file = ".", editable = true}
+pandas = "*"
+jupyterlab = "*"
 
 [dev-packages]
 
