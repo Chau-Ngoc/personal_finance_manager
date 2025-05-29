@@ -12,8 +12,11 @@ description = "This project helps me keep track of my expenses by extracting the
 readme = "README.md"
 
 [tool.setuptools.packages.find]
-where = ['src']
-include = ['personal_finance_manager*']
+where = ["src"]
+include = ["personal_finance_manager*"]
+
+[tool.setuptools.package-data]
+personal_finance_manager = ["example.csv"]
 
 [tool.ruff]
 line-length = 119

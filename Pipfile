@@ -7,10 +7,9 @@ name = "pypi"
 boto3 = "*"
 python-dotenv = "*"
 beautifulsoup4 = "*"
-lxml = "*"
-personal-finance-manager = {file = ".", editable = true}
 pandas = "*"
 jupyterlab = "*"
+personal-finance-manager = {file = "dist/personal_finance_manager-1.0.0-py3-none-any.whl"}
 
 [dev-packages]
 

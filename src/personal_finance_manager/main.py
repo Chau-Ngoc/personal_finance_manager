@@ -72,10 +72,10 @@ def create_row_dict(
     return row_dict
 
 
-def generate_keyname() -> str:
-    this_month = datetime.today().strftime("%B-%Y")
+def generate_keyname(prefix, at: datetime) -> str:
+    this_month = at.strftime("%B-%Y")
     filename = f"{this_month}.csv"
-    return f"reports/{filename}"
+    return f"{prefix}/{filename}"
 
 
 def lambda_handler(event, context):
@@ -87,8 +87,7 @@ def lambda_handler(event, context):
     content_bytes = get_raw_email_content(event, as_bytes=True)
 
     email_message = email_parser.parsebytes(content_bytes)
-    from_addr = email_message["From"]
-    match = pattern.search(from_addr)
+    match = pattern.search(email_message["From"])
 
     # Parse email HTML content
     html_doc = get_html_content(email_message)
@@ -97,7 +96,7 @@ def lambda_handler(event, context):
     row_dict = create_row_dict(document, email_message)
 
     # Modify the csv file in S3
-    key = generate_keyname()
+    key = generate_keyname("reports", datetime.strptime(email_message["Date"], "%a, %d %b %Y %H:%M:%S %z"))
     response = s3.get_object(Bucket=os.environ["S3_BUCKET_NAME"], Key=key)
 
     df = pd.read_csv(response["Body"])

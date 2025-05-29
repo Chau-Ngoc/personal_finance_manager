@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 class BIDVHTMLDocument(ABC):
     def __init__(self, html_document: str):
-        self.soup = BeautifulSoup(html_document, "lxml")
+        self.soup = BeautifulSoup(html_document, "html.parser")
 
     @abstractmethod
     def get_meaningful_information(self) -> list:
