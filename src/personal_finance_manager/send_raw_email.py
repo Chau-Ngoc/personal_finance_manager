@@ -52,9 +52,9 @@ def generate_month_strings(today: datetime) -> tuple[str, str]:
     return previous_month, this_month
 
 
-def download_this_month_report(s3_client, bucket: str, prefix: str, fp: str) -> None:
+def download_this_month_report(s3_client, bucket: str, prefix: str, fp: str, dest: str) -> None:
     key = f"{prefix}/{fp}"
-    with open(f"{fp}", "wb") as f:
+    with open(f"{dest}/{fp}", "wb") as f:
         s3_client.download_fileobj(Bucket=bucket, Key=key, Fileobj=f)
 
 
@@ -64,7 +64,7 @@ def lambda_handler(event, context):
     previous_month, this_month = generate_month_strings(datetime.today())
 
     filename = f"{previous_month}.csv"
-    download_this_month_report(s3, os.environ.get("S3_BUCKET_NAME"), "reports", f"/tmp/{filename}")
+    download_this_month_report(s3, os.environ.get("S3_BUCKET_NAME"), "reports", fp=filename, dest="/tmp")
 
     email_message = draft_email(
         f"Please find attached the monthly report for {previous_month}.",

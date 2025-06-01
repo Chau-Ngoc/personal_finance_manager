@@ -81,7 +81,7 @@ def generate_keyname(prefix, at: datetime) -> str:
 def lambda_handler(event, context):
     s3 = boto3.client("s3")
     email_parser = email.parser.BytesParser(policy=email.policy.SMTP)
-    pattern = re.compile(r"<(?P<specifier>.*)@bidv\.com\.vn>")
+    pattern = re.compile(r"<?(?P<specifier>\S+)@bidv\.com\.vn>?")
 
     # Get raw email content from SNS topic
     content_bytes = get_raw_email_content(event, as_bytes=True)
