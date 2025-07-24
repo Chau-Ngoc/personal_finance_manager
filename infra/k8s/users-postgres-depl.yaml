@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-postgres-depl
+spec:
+  selector:
+    matchLabels:
+      service: users-postgres
+  template:
+    metadata:
+      labels:
+        service: users-postgres
+    spec:
+      containers:
+        - name: users-postgres
+          image: postgres:14.18-alpine
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: postgres_password
+                  name: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: users-postgres-srv
+spec:
+  selector:
+    service: users-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+      name: users

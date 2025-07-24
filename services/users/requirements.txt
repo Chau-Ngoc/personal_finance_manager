@@ -1,0 +1,7 @@
+-i https://pypi.org/simple
+argon2-cffi==25.1.0
+fastapi[standard]==0.116.0
+personal-finance-manager-shared @ git+https://github.com/Chau-Ngoc/personal_finance_manager_shared.git@31305b54c632ea105d4dcfe8147719fadf8bf6c7
+psycopg2-binary==2.9.10
+sqlalchemy==2.0.41
+tenacity==9.1.2

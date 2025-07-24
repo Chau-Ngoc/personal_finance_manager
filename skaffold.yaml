@@ -1,0 +1,23 @@
+apiVersion: skaffold/v4beta13
+kind: Config
+metadata:
+  name: personal-finance-manager
+build:
+  artifacts:
+    - image: ngocchau95/users
+      context: services/users
+      docker:
+        dockerfile: Dockerfile
+      sync:
+        manual:
+          - src: 'src/**/*.py'
+            dest: .
+manifests:
+  rawYaml:
+    - infra/k8s/users-depl.yaml
+    - infra/k8s/users-postgres-depl.yaml
+portForward:
+  - resourceType: deployment
+    resourceName: users-depl
+    port: 8000
+    localPort: 8000

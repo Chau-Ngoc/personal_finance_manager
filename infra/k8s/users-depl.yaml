@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-depl
+spec:
+  selector:
+    matchLabels:
+      service: users
+  template:
+    metadata:
+      labels:
+        service: users
+    spec:
+      containers:
+        - name: users
+          image: ngocchau95/users:latest
+          env:
+            - name: POSTGRES_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: postgres_password
+                  name: postgres
+            - name: POSTGRES_DB_USER
+              value: postgres
+            - name: POSTGRES_DB_HOST
+              value: users-postgres-srv
+            - name: POSTGRES_DB_PORT
+              value: '5432'
+            - name: DEV_DB_URL
+              value: postgresql+psycopg2://$(POSTGRES_DB_USER):$(POSTGRES_DB_PASSWORD)@$(POSTGRES_DB_HOST):$(POSTGRES_DB_PORT)
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: users-srv
+spec:
+  selector:
+    service: users
+  ports:
+    - name: users
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
