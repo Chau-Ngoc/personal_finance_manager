@@ -11,6 +11,29 @@ spec:
       labels:
         service: users
     spec:
+      initContainers:
+        - name: wait-for-database
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+          args:
+            - |
+              timeout=60
+              elapsed=0
+              until nc -z $(POSTGRES_DB_HOST) $(POSTGRES_DB_PORT); do
+                if [ $elapsed -ge $timeout ]; then
+                  echo "Timeout after ${timeout}s"
+                  exit 1
+                fi
+                sleep 1
+                elapsed=$((elapsed + 1))
+              done
+          env:
+            - name: POSTGRES_DB_HOST
+              value: users-postgres-srv
+            - name: POSTGRES_DB_PORT
+              value: '5432'
       containers:
         - name: users
           image: ngocchau95/users:latest
